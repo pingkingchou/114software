@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>軟體授權登記系統</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- *** FIX: Define global helper functions first *** -->
+    <!-- *** 修正：優先定義全域輔助函數 *** -->
+    <script>
+        /**
+         * 顯示全局錯誤訊息
+         */
+        function showGlobalError(message) {
+            try {
+                const errorEl = document.getElementById('global-error');
+                const messageEl = document.getElementById('global-error-message');
+                messageEl.textContent = `錯誤：${message}`;
+                errorEl.style.display = 'block';
+                setTimeout(() => {
+                    errorEl.style.display = 'none';
+                }, 5000); // 5 秒後自動隱藏
+            } catch (e) {
+                console.error("showGlobalError helper failed:", e);
+                console.error("Original error message:", message);
+            }
+        }
+
+        /**
+         * 顯示全局成功訊息
+         */
+        function showGlobalSuccess(message) {
+             try {
+                const successEl = document.getElementById('global-success');
+                const messageEl = document.getElementById('global-success-message');
+                messageEl.textContent = message;
+                successEl.style.display = 'block';
+                setTimeout(() => {
+                    successEl.style.display = 'none';
+                }, 3000); // 3 秒後自動隱藏
+            } catch (e) {
+                console.error("showGlobalSuccess helper failed:", e);
+            }
+        }
+    </script>
+    
+    <!-- *** FIX: Removed first module script block. All logic moved to the end of <body>. *** -->
+    <!-- *** 修正：已移除第一個模組腳本區塊。所有邏輯已移至 <body> 結尾。 *** -->
+    
+    <style>
+        /* 增加一個簡單的載入動畫 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* 隱藏/顯示頁籤內容 */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        /* 訊息提示框 */
+        #global-error, #global-success { display: none; }
+    </style>
+</head>
+
+<body class="bg-gray-100 font-sans antialiased">
+
+    <!-- 全局錯誤提示 -->
+    <div id="global-error" class="fixed top-0 left-0 right-0 bg-red-600 text-white p-4 text-center z-50">
+        <span id="global-error-message"></span>
+    </div>
+
+    <!-- 全局成功提示 -->
+    <div id="global-success" class="fixed top-0 left-0 right-0 bg-green-600 text-white p-4 text-center z-50">
+        <span id="global-success-message"></span>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
+
+        <!-- 標題 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">學校軟體授權登記系統</h1>
+            <p class="text-lg text-gray-600 mt-2">請登記您本年度需要的軟體授權</p>
+        </div>
+
+        <!-- 頁籤導覽 -->
+        <div class="mb-6">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button id="tab-btn-register" class="tab-btn active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-indigo-600 border-indigo-500" aria-current="page">
+                        老師登記表單
+                    </button>
+                    <button id="tab-btn-dashboard" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                        管理儀表板
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- 頁籤內容 -->
+        <div>
+            <!-- 1. 老師登記表單 (預設顯示) -->
+            <div id="tab-content-register" class="tab-content active">
+                <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+                    <div class="px-6 py-8">
+                        <form id="registration-form">
+                            <!-- 個人資訊 -->
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="teacher-name" class="block text-sm font-medium text-gray-700">您的姓名</label>
+                                    <input type="text" name="teacher-name" id="teacher-name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="王大明">
+                                </div>
+                                <div>
+                                    <!-- *** 修正 #4: 修改 Email 標籤 *** -->
+                                    <label for="teacher-email" class="block text-sm font-medium text-gray-700">您的 Email (請先以此信箱申請帳號)</label>
+                                    <input type="email" name="teacher-email" id="teacher-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="example@lsps.tp.edu.tw">
+                                </div>
+                            </div>
+
+                            <!-- 軟體清單 -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+                                <!-- 全市授權 -->
+                                <fieldset class="border rounded-lg p-4">
+                                    <legend class="text-base font-medium text-gray-900 px-2">台北市統購 (全市授權)</legend>
+                                    <div class="space-y-3 mt-2">
+                                        <!-- *** 修正 #3: 移除 Adobe *** -->
+                                        <div class="relative flex items-start">
+                                            <div class="flex items-center h-5">
+                                                <!-- *** 修正 (儀表板名稱): 更新 value *** -->
+                                                <input id="sw-classswift" name="software" type="checkbox" value="ClassSwift" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                                            </div>
+                                            <div class="ml-3 text-sm">
+                                                <label for="sw-classswift" class="font-medium text-gray-700">ClassSwift 課堂互動軟體</label>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- *** 搬移 Wordwall *** -->
+                                        <div class="relative flex items-start">
+                                            <!-- *** 修正 (儀表板名称): 更新 value *** -->
+                                            <input id="sw-wordwall" name="software" type="checkbox" value="Wordwall" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-1">
+                                            <label for="sw-wordwall" class="ml-3 text-sm font-medium text-gray-700">Wordwall (10組)</label>
+                                        </div>
+                                        <!-- *** 搬移 Padlet *** -->
+                                        <div class="relative flex items-start">
+                                            <!-- *** 修正 (儀表板名称): 更新 value *** -->
+                                            <input id="sw-padlet" name="software" type="checkbox" value="Padlet" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-1">
+                                            <label for="sw-padlet" class="ml-3 text-sm font-medium text-gray-700">Padlet (10組)</label>
+                                        </div>
+                                        <!-- *** 搬移 Kahoot *** -->
+                                        <div class="relative flex items-start">
+                                            <!-- *** 修正 (儀表板名称): 更新 value *** -->
+                                            <input id="sw-kahoot" name="software" type="checkbox" value="Kahoot！教師版" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-1">
+                                            <label for="sw-kahoot" class="ml-3 text-sm font-medium text-gray-700">Kahoot！教師版 (10組)</label>
+                                        </div>
+                                    </div>
+                                </fieldset>
+
+                                <!-- 學校自購 (限量) -->
+                                <fieldset class="border rounded-lg p-4">
+                                    <legend class="text-base font-medium text-gray-900 px-2">學校自購 (限量授權)</legend>
+                                    <div class="space-y-3 mt-2">
+                                        <!-- *** 移除 Wordwall (已搬移) *** -->
+                                        <!-- *** 移除 Padlet (已搬移) *** -->
+                                        <!-- *** 移除 Kahoot (已搬移) *** -->
+                                        <div class="relative flex items-start">
+                                            <!-- *** 修正 (儀表板名称): 更新 value *** -->
+                                            <input id="sw-edcafe" name="software" type="checkbox" value="edcafe AI" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-1">
+                                            <label for="sw-edcafe" class="ml-3 text-sm font-medium text-gray-700">edcafe AI (21組)</label>
+                                        </div>
+                                        <div class="relative flex items-start">
+                                            <!-- *** 修正 (儀表板名称): 更新 value *** -->
+                                            <input id="sw-myedit" name="software" type="checkbox" value="myedit" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-1">
+                                            <label for="sw-myedit" class="ml-3 text-sm font-medium text-gray-700">myedit (20組)</label>
+                                        </div>
+                                        <div class="relative flex items-start">
+                                            <!-- *** 修正 (儀表板名称): 更新 value *** -->
+                                            <input id="sw-felo" name="software" type="checkbox" value="FELO AI" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-1">
+                                            <label for="sw-felo" class="ml-3 text-sm font-medium text-gray-700">FELO AI (10組)</label>
+                                        </div>
+                                        <!-- *** 修正 #3: 移除 文電通 PDF *** -->
+                                    </div>
+                                </fieldset>
+                            </div>
+
+                            <!-- 勾選上限提示 -->
+                            <div id="checkbox-limit-message" class="text-red-600 text-sm mt-4" style="display: none;">
+                                您最多只能選擇 3 項軟體。
+                            </div>
+                            
+                            <!-- 提交按鈕 -->
+                            <div class="mt-8 pt-5 border-t border-gray-200">
+                                <div class="flex justify-end">
+                                    <button type="submit" id="submit-button" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50">
+                                        <span id="submit-text">提交申請</span>
+                                        <span id="submit-loading" class="hidden">
+                                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            處理中...
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 管理儀表板 (預設隱藏) -->
+            <div id="tab-content-dashboard" class="tab-content">
+                <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+                    
+                    <!-- 匯出按鈕 -->
+                    <div class="p-4 border-b border-gray-200 bg-gray-50 flex justify-end">
+                        <button id="export-csv-button" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <!-- SVG icon for download -->
+                            <svg class="-ml-1 mr-2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                            匯出所有登記資料 (CSV)
+                        </button>
+                    </div>
+
+                    <!-- 儀表板內容 -->
+                    <div id="dashboard-loading" class="flex justify-center items-center h-64">
+                        <div class="loader"></div>
+                        <p class="ml-4 text-gray-600">正在載入統計資料...</p>
+                    </div>
+
+                    <div id="dashboard-content" class="hidden">
+                        <!-- 表格 -->
+                        <div class="flex flex-col">
+                            <div class="-my-2 overflow-x-auto">
+                                <div class="py-2 align-middle inline-block min-w-full">
+                                    <div class="shadow overflow-hidden border-b border-gray-200">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        軟體名稱 (限量)
+                                                    </th>
+                                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        統計
+                                                    </th>
+                                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        申請人列表 (依申請順序)
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="dashboard-table-body" class="bg-white divide-y divide-gray-200">
+                                                <!-- 資料將由 JavaScript 動態填入 -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 密碼輸入 Modal (預設隱藏) -->
+    <div id="password-modal" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity flex items-center justify-center z-40" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">請輸入管理密碼</h3>
+            <input type="password" id="password-input" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+            <p id="password-error" class="text-red-600 text-sm mt-2" style="display: none;">密碼錯誤！</p>
+            <div class="mt-4 flex justify-end space-x-2">
+                <button id="password-cancel" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">取消</button>
+                <button id="password-submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">確認</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 主要邏輯 -->
+    <!-- *** FIX: Consolidate all module logic into one block *** -->
+    <!-- *** 修正：將所有模組邏輯合併到一個區塊中 *** -->
+    <script type="module">
+    
+        // *** 步驟 1: 定義全域變數 ***
+        
+        // Firebase 服務全域變數
+        let db;
+        let auth;
+        let userId;
+        let appId; // 將在 initializeFirebase 中設定
+        
+        // Firestore 集合路徑
+        let requestsCollectionRef;
+        
+        // Firebase SDK 函數 (將由 import 填充)
+        let initializeApp;
+        let getAuth, signInAnonymously, onAuthStateChanged;
+        let getFirestore, doc, addDoc, getDocs, collection, onSnapshot, query, where, serverTimestamp, setLogLevel;
+
+        // 限量軟體的配額 (Quota)
+        // 鍵 (Key) 必須與表單中 checkbox 的 value "完全一致"
+        // *** 修正 (儀表板名稱): 更新 keys ***
+        const LIMITED_SOFTWARE_QUOTAS = {
+            // *** 移除 Wordwall (不再限量) ***
+            // *** 移除 Padlet (不再限量) ***
+            // *** 移除 Kahoot！教師版 (不再限量) ***
+            "edcafe AI": 21,
+            "myedit": 20,
+            "FELO AI": 10
+            // *** 修正 #3: 移除 文電通 PDF ***
+        };
+
+        // 勾選上限
+        const MAX_SELECTIONS = 3; // *** 修正 #2: 勾選上限 ***
+
+        // 儀表板密碼
+        const DASHBOARD_PASSWORD = "1937"; // *** 修正: 新增密碼 ***
+
+        
+        // *** 步驟 2: 定義所有應用程式函數 ***
+        // (移除 showGlobalError 和 showGlobalSuccess，它們現在在 <head> 中)
+
+        /**
+         * 初始化 Firebase
+         */
+        window.initializeFirebase = async () => {
+            try {
+                // --- 【本機測試請注意】---
+                // 為了讓這個 HTML 檔案能獨立運作，您必須手動貼上您的 Firebase 專案設定
+                // 請到 Firebase 專案設定 -> 一般 -> 您的應用程式 -> 複製 firebaseConfig 物件
+                
+                // 【步驟1】: 請將下面的 placeholder (預留位置) 物件，
+                //           完整取代成您從 Firebase 複製的 `firebaseConfig`
+                
+                const firebaseConfig = {
+                  apiKey: "AIzaSyDi_OwcRLTPLPPC4rO0__BadT6kQsoHs4g",
+                  authDomain: "software-77320.firebaseapp.com",
+                  projectId: "software-77320",
+                  storageBucket: "software-77320.firebasestorage.app",
+                  messagingSenderId: "240837305327",
+                  appId: "1:240837305327:web:6a377cc19318efd3108c1a",
+                  measurementId: "G-7ZX05SWPLG"
+                };
+
+                // --- (請勿修改以下) ---
+
+                // 檢查 placeholder 是否已被替換
+                if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+                    console.warn("Firebase Config 尚未設定。");
+                    showGlobalError("Firebase Config 尚未設定，請聯繫管理員。");
+                }
+
+                // 【步驟2】: (自動執行) 初始化 App
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // 【步驟3】: (自動執行) 設定 appId，用於資料庫路徑
+                // 我們不再依賴 __app_id，直接從 config 讀取
+                appId = firebaseConfig.appId || 'default-app-id';
+                
+                // 設定 Firestore 集合路徑
+                requestsCollectionRef = collection(db, `artifacts/${appId}/public/data/software_requests`);
+                
+                // 【步驟4】: (自動執行) 監聽認證狀態並登入
+                setupAuthListener();
+                
+                // 【步驟5】: (自動執行) 設定表單監聽
+                setupFormListener();
+                setupTabNavigation();
+                setupCheckboxLimit();
+
+            } catch (error) {
+                console.error("Firebase 初始化失敗:", error);
+                showGlobalError(`資料庫連線失敗: ${error.message}`);
+            }
+        };
+
+        /**
+         * 設定 Firebase 認證監聽
+         */
+        function setupAuthListener() {
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    // 使用者已登入 (無論是匿名還是其他方式)
+                    userId = user.uid;
+                    console.log("Firebase 已認證, UserID:", userId);
+                    // 登入後，再開始監聽儀表板資料
+                    setupDashboardListener();
+                } else {
+                    // 使用者未登入，執行匿名登入
+                    console.log("使用者未登入，嘗試匿名登入...");
+                    try {
+                        const userCredential = await signInAnonymously(auth);
+                        userId = userCredential.user.uid;
+                        console.log("匿名登入成功, UserID:", userId);
+                        // 登入後，再開始監聽儀表板資料
+                        setupDashboardListener();
+                    } catch (error) {
+                        console.error("匿名登入失敗:", error);
+                        showGlobalError("無法建立匿名連線，請重新整理。");
+                    }
+                }
+            });
+        }
+
+        /**
+         * 設定表單提交監聽
+         */
+        function setupFormListener() {
+            const form = document.getElementById('registration-form');
+            const submitButton = document.getElementById('submit-button');
+            const submitText = document.getElementById('submit-text');
+            const submitLoading = document.getElementById('submit-loading');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault(); // 防止表單傳統提交
+                
+                // 檢查登入狀態
+                if (!auth.currentUser) {
+                    showGlobalError("尚未連線到資料庫，請稍後再試。");
+                    return;
+                }
+
+                // 顯示處理中
+                submitButton.disabled = true;
+                submitText.classList.add('hidden');
+                submitLoading.classList.remove('hidden');
+
+                try {
+                    const name = document.getElementById('teacher-name').value;
+                    const email = document.getElementById('teacher-email').value;
+                    
+                    // 獲取所有勾選的軟體
+                    const selectedSoftware = [];
+                    const checkboxes = document.querySelectorAll('input[name="software"]:checked');
+                    checkboxes.forEach((checkbox) => {
+                        selectedSoftware.push(checkbox.value);
+                    });
+
+                    if (selectedSoftware.length === 0) {
+                        showGlobalError("您尚未選擇任何軟體。");
+                        throw new Error("No software selected"); // 中斷執行
+                    }
+
+                    // 準備要寫入 Firestore 的資料
+                    const submissionData = {
+                        teacherName: name,
+                        teacherEmail: email,
+                        software: selectedSoftware, // 存為陣列
+                        createdAt: serverTimestamp() // 使用伺服器時間
+                    };
+
+                    // 寫入資料到 Firestore
+                    const docRef = await addDoc(requestsCollectionRef, submissionData);
+                    console.log("資料已提交, Document ID:", docRef.id);
+
+                    // 顯示成功訊息
+                    showGlobalSuccess("申請提交成功！");
+                    form.reset(); // 清空表單
+
+                } catch (error) {
+                    console.error("提交失敗:", error);
+                    if (error.message !== "No software selected") {
+                        showGlobalError("提交失敗，請檢查網路或稍後再試。");
+                    }
+                } finally {
+                    // 恢復按鈕
+                    submitButton.disabled = false;
+                    submitText.classList.remove('hidden');
+                    submitLoading.classList.add('hidden');
+                }
+            });
+        }
+        
+        /**
+         * *** 修正 #2: 設定勾選上限 (3項) ***
+         */
+        function setupCheckboxLimit() {
+            const checkboxes = document.querySelectorAll('input[name="software"]');
+            const limitMessage = document.getElementById('checkbox-limit-message');
+
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    const checkedCount = document.querySelectorAll('input[name="software"]:checked').length;
+                    
+                    if (checkedCount > MAX_SELECTIONS) {
+                        // 如果超過上限，取消剛剛的勾選
+                        checkbox.checked = false;
+                        // 顯示提示
+                        limitMessage.style.display = 'block';
+                        // 晃動提示
+                        limitMessage.classList.add('animate-bounce');
+                        setTimeout(() => {
+                            limitMessage.style.display = 'none';
+                            limitMessage.classList.remove('animate-bounce');
+                        }, 2000); // 2秒後隱藏
+                    }
+                });
+            });
+        }
+
+        /**
+         * 設定儀表板的即時資料監聽 (onSnapshot)
+         */
+        function setupDashboardListener() {
+            const loadingEl = document.getElementById('dashboard-loading');
+            const contentEl = document.getElementById('dashboard-content');
+            const tableBody = document.getElementById('dashboard-table-body');
+            
+            // 監聽 requestsCollectionRef 集合的「所有」變動
+            onSnapshot(query(requestsCollectionRef), (querySnapshot) => {
+                console.log("儀表板資料更新...");
+                
+                // 1. 初始化統計結構
+                let stats = {};
+                for (const softwareName in LIMITED_SOFTWARE_QUOTAS) {
+                    stats[softwareName] = {
+                        quota: LIMITED_SOFTWARE_QUOTAS[softwareName],
+                        count: 0,
+                        applicants: [] // {email, timestamp}
+                    };
+                }
+
+                // 2. 處理從 Firestore 抓回來的原始資料
+                let allDocs = [];
+                querySnapshot.forEach((doc) => {
+                    allDocs.push(doc.data());
+                });
+
+                // 3. 依時間戳 (createdAt) 排序
+                // (注意：新提交的 createdAt 可能是 null，直到伺服器確認)
+                allDocs.sort((a, b) => {
+                    const timeA = a.createdAt ? a.createdAt.toMillis() : 0;
+                    const timeB = b.createdAt ? b.createdAt.toMillis() : 0;
+                    return timeA - timeB;
+                });
+
+                // 4. 遍歷排序後的資料，填入統計
+                allDocs.forEach((data) => {
+                    const email = data.teacherEmail || 'N/A';
+                    const timestamp = data.createdAt;
+
+                    if (Array.isArray(data.software)) {
+                        data.software.forEach(softwareName => {
+                            // 只統計在 LIMITED_SOFTWARE_QUOTAS 清單中的軟體
+                            if (stats[softwareName]) {
+                                stats[softwareName].count++;
+                                stats[softwareName].applicants.push(email);
+                            }
+                        });
+                    }
+                });
+
+                // 5. 更新儀表板 (重新繪製)
+                tableBody.innerHTML = ''; // 清空舊資料
+                
+                if (Object.keys(stats).length === 0) {
+                     tableBody.innerHTML = '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">目前沒有需要統計的限量軟體。</td></tr>';
+                }
+
+                for (const softwareName in stats) {
+                    const data = stats[softwareName];
+                    const remaining = data.quota - data.count;
+                    const applicantsList = data.applicants.length > 0 ? data.applicants.join(', ') : '尚無人申請';
+
+                    // 剩餘數量顏色
+                    let remainingColor = 'text-green-600';
+                    if (remaining <= 5) remainingColor = 'text-yellow-600';
+                    if (remaining <= 0) remainingColor = 'text-red-600 font-bold';
+
+                    const rowHtml = `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">${softwareName}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">
+                                    已申請: ${data.count} / 總共: ${data.quota}
+                                </div>
+                                <div class="text-sm ${remainingColor}">
+                                    剩餘: ${remaining}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-500" style="word-break: break-all; min-width: 250px;">
+                                    ${applicantsList}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += rowHtml;
+                }
+
+                // 顯示內容
+                loadingEl.style.display = 'none';
+                contentEl.style.display = 'block';
+
+            }, (error) => {
+                console.error("監聽儀表板失敗:", error);
+                showGlobalError("無法載入儀表板資料。");
+                loadingEl.innerHTML = '<p class="text-red-600">載入儀表板失敗</p>';
+            });
+
+            // 設定匯出按鈕監聽
+            setupExportButton();
+        }
+
+        /**
+         * 設定頁籤導覽
+         */
+        function setupTabNavigation() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contents = document.querySelectorAll('.tab-content');
+            const modal = document.getElementById('password-modal');
+            const passwordInput = document.getElementById('password-input');
+            const passwordSubmit = document.getElementById('password-submit');
+            const passwordCancel = document.getElementById('password-cancel');
+            const passwordError = document.getElementById('password-error');
+
+            const registerTabBtn = document.getElementById('tab-btn-register');
+            const dashboardTabBtn = document.getElementById('tab-btn-dashboard');
+            
+            const registerContent = document.getElementById('tab-content-register');
+            const dashboardContent = document.getElementById('tab-content-dashboard');
+
+            // 切換 Tab 的輔助函數
+            function switchTab(targetTab) {
+                 // 移除所有按鈕的 active 狀態
+                tabs.forEach(t => {
+                    t.classList.remove('text-indigo-600', 'border-indigo-500');
+                    t.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    t.setAttribute('aria-current', 'false');
+                });
+                
+                // 隱藏所有內容
+                contents.forEach(c => c.classList.remove('active'));
+
+                if (targetTab === 'register') {
+                    // 啟用登記 Tab
+                    registerTabBtn.classList.add('text-indigo-600', 'border-indigo-500');
+                    registerTabBtn.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    registerTabBtn.setAttribute('aria-current', 'page');
+                    registerContent.classList.add('active');
+                } else if (targetTab === 'dashboard') {
+                    // 啟用儀表板 Tab
+                    dashboardTabBtn.classList.add('text-indigo-600', 'border-indigo-500');
+                    dashboardTabBtn.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    dashboardTabBtn.setAttribute('aria-current', 'page');
+                    dashboardContent.classList.add('active');
+                }
+            }
+
+            // 點擊登記頁籤
+            registerTabBtn.addEventListener('click', () => {
+                switchTab('register');
+            });
+
+            // 點擊儀表板頁籤 (*** 修正: 觸發密碼 ***)
+            dashboardTabBtn.addEventListener('click', () => {
+                // 顯示密碼 Modal
+                passwordInput.value = '';
+                passwordError.style.display = 'none';
+                modal.style.display = 'flex';
+                passwordInput.focus();
+            });
+
+            // 密碼確認
+            passwordSubmit.addEventListener('click', () => {
+                if (passwordInput.value === DASHBOARD_PASSWORD) {
+                    modal.style.display = 'none';
+                    switchTab('dashboard'); // 密碼正確，切換頁面
+                } else {
+                    passwordError.style.display = 'block';
+                }
+            });
+
+            // 密碼取消
+            passwordCancel.addEventListener('click', () => {
+                modal.style.display = 'none';
+                // 保持在原來的頁籤 (不需要切換)
+            });
+        }
+        
+        /**
+         * 設定匯出 CSV 按鈕
+         */
+        function setupExportButton() {
+            const exportButton = document.getElementById('export-csv-button');
+            exportButton.addEventListener('click', exportDataToCSV);
+        }
+
+        /**
+         * 匯出所有資料為 CSV
+         */
+        async function exportDataToCSV() {
+            console.log("正在準備匯出 CSV...");
+            if (!db) {
+                showGlobalError("資料庫尚未連線。");
+                return;
+            }
+
+            try {
+                const querySnapshot = await getDocs(query(requestsCollectionRef));
+                let allDocs = [];
+                querySnapshot.forEach((doc) => {
+                    allDocs.push(doc.data());
+                });
+
+                // 依時間戳排序
+                allDocs.sort((a, b) => {
+                    const timeA = a.createdAt ? a.createdAt.toMillis() : 0;
+                    const timeB = b.createdAt ? b.createdAt.toMillis() : 0;
+                    return timeA - timeB;
+                });
+                
+                // *** 修正 #1: CSV 匯出邏輯 (一軟體一列) ***
+                
+                let csvContent = "data:text/csv;charset=utf-8,";
+                
+                // 處理 CSV 中的特殊字元 (例如雙引號)
+                const escapeCSV = (field) => {
+                    if (field === null || field === undefined) return '""';
+                    let str = String(field);
+                    // 如果欄位包含雙引號、逗號或換行符，則用雙引號包住
+                    if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+                        // 將欄位內的雙引號替換為兩個雙引號
+                        str = str.replace(/"/g, '""');
+                        return `"${str}"`;
+                    }
+                    return str; // 不需要包住
+                };
+
+                // CSV 標頭
+                const headers = ["申請時間", "姓名", "Email", "申請的軟體"];
+                csvContent += headers.join(",") + "\r\n";
+
+                // 建立 CSV 內容 (一軟體一列)
+                allDocs.forEach((doc) => {
+                    const name = escapeCSV(doc.teacherName);
+                    const email = escapeCSV(doc.teacherEmail);
+                    const timestamp = doc.createdAt ? doc.createdAt.toDate().toLocaleString('sv-SE') : 'N/A'; // 瑞典格式 (YYYY-MM-DD HH:MM:SS)
+
+                    if (Array.isArray(doc.software) && doc.software.length > 0) {
+                        // 申請了幾套軟體，就產生幾列
+                        doc.software.forEach(softwareName => {
+                            const software = escapeCSV(softwareName);
+                            const row = [timestamp, name, email, software];
+                            csvContent += row.join(",") + "\r\n";
+                        });
+                    } else {
+                        // 處理沒有軟體資料的申請 (雖然理論上不該發生)
+                        const row = [timestamp, name, email, ""];
+                        csvContent += row.join(",") + "\r\n";
+                    }
+                });
+
+                // 建立下載連結
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                
+                // 加上 UTF-8 BOM (Byte Order Mark) 確保 Excel 能正確開啟 UTF-8
+                // \uFEFF 是 BOM 的字元
+                link.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURI(csvContent.substring(csvContent.indexOf(",") + 1));
+                
+                // 命名檔案
+                const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                link.setAttribute("download", `軟體申請紀錄_${date}.csv`);
+                document.body.appendChild(link); // 必須附加到 DOM 才能點擊
+                
+                link.click(); // 觸發下載
+                document.body.removeChild(link); // 移除連結
+                
+                console.log("CSV 匯出完成。");
+
+            } catch (error) {
+                console.error("匯出 CSV 失敗:", error);
+                showGlobalError("匯出 CSV 失敗。");
+            }
+        }
+        
+        
+        // *** 步驟 3: 執行程式 ***
+        
+        try {
+            // 首先，匯入 Firebase SDK 函數
+            const firebaseApp = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+            const firebaseAuth = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
+            const firebaseFirestore = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+            
+            // 將匯入的函數指派給我們的全域變數
+            initializeApp = firebaseApp.initializeApp;
+            
+            getAuth = firebaseAuth.getAuth;
+            signInAnonymously = firebaseAuth.signInAnonymously;
+            onAuthStateChanged = firebaseAuth.onAuthStateChanged;
+            
+            getFirestore = firebaseFirestore.getFirestore;
+            doc = firebaseFirestore.doc;
+            addDoc = firebaseFirestore.addDoc;
+            getDocs = firebaseFirestore.getDocs;
+            collection = firebaseFirestore.collection;
+            onSnapshot = firebaseFirestore.onSnapshot;
+            query = firebaseFirestore.query;
+            where = firebaseFirestore.where;
+            serverTimestamp = firebaseFirestore.serverTimestamp;
+            setLogLevel = firebaseFirestore.setLogLevel;
+            
+            // (移除 window.firebase 的設定，不再需要)
+            
+            // 最後，呼叫初始化函數 (現在能保證它和它依賴的函數都已定義)
+            initializeFirebase();
+
+        } catch (error) {
+            console.error("Firebase SDK 載入失敗:", error);
+            // showGlobalError 現在是在 <head> 中定義的，所以這裡可以安全呼叫
+            showGlobalError("無法載入 Firebase 核心模組，請檢查網路連線或瀏覽器設定。");
+        }
+
+    </script>
+</body>
+</html>
